@@ -45,28 +45,24 @@ def check_authorization():
 
 @app.route("/profile/username", methods=["GET"])
 def get_profile():
-    # session["session_id"] = "ilinca"
     if is_user_authorized():
         instagram_client = get_instagram_client(get_user_authorization(session['session_id']).access_token)
-        # instagram_client = get_instagram_client(get_user_authorization(session['session_id']).get("access_token"))
         username = instagram_client.get_user_profile().get('username')
-        print(username)
         return jsonify({'username': username})
     return jsonify()
 
 
 @app.route("/getPhotos", methods=["GET"])
 def get_photos():
-    search_key = request.args.get('key')
-    print(search_key)
+    # search_key = request.args.get('key')
+    media_urls = []
     if is_user_authorized():
         instagram_client = get_instagram_client(get_user_authorization(session['session_id']).access_token)
-        media = instagram_client.get_user_media()
-        media_url = []
-        for i in media['data']:
-            if i['media_type'] == 'IMAGE':
-                media_url.append(i['media_url'])
-    return jsonify({'media_url': media_url})
+        media_list = instagram_client.get_user_media()
+        for media in media_list['data']:
+            if media['media_type'] == 'IMAGE':
+                media_urls.append(media['media_url'])
+    return jsonify({'media_urls': media_urls})
 
 
 @app.route("/logout", methods=["GET"])
@@ -114,6 +110,4 @@ if __name__ == "__main__":
     app.secret_key = "super secret key"
     app.config['SESSION_COOKIE_SAMESITE'] = "None"
     app.config['SESSION_COOKIE_SECURE'] = True
-    # save_session("ilinca", {
-    #     "access_token": "IGQVJWQmVZARVJDUEhvWGhjZA2tBYVlReDJmZAkNyaGxTN29IWHpzdk82Mm40QWtwT2JYUFJJVU1LanVNOF9qeWNXaF8zMzdtRWZAiY0tjanFfcU5MUjJVYXRTVDYxTUlhT1c5QzRQSDVB"})
     app.run(debug=True, port=8000)
