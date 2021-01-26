@@ -1,0 +1,2 @@
+Flask~=1.1.2
+instagram-basic-display==1.0.5
