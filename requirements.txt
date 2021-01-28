@@ -1,2 +1,11 @@
 Flask~=1.1.2
+flask_cors==3.0.10
 instagram-basic-display==1.0.5
+python-firebase==1.2
+
+Pyrebase~=3.0.27
+requests~=2.11.1
+torch~=1.7.1+cpu
+torchvision~=0.8.2+cpu
+Pillow~=8.1.0
+numpy~=1.19.5

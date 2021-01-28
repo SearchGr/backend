@@ -1,17 +1,25 @@
+import io
 import uuid
-from datetime import datetime, timedelta
+import torchvision
 
+import requests
+import torch
+from PIL import Image
 from flask import Flask, session, jsonify, request, redirect
 from flask_cors import CORS
 from instagram_basic_display.InstagramBasicDisplay import InstagramBasicDisplay
+from torchvision import models
+from torchvision import transforms
 
 import app_properties
-from user_authorization import UserAuthorization
+import detect_utils
+from database import save, retrieve_user_data, retrieve
+from user_data import UserData
+from media_data import MediaData
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
 
-db = {}
 instagram_basic_display = InstagramBasicDisplay(app_id=app_properties.app_id,
                                                 app_secret=app_properties.app_secret,
                                                 redirect_url=app_properties.callback_url)
@@ -25,10 +33,10 @@ def login():
 @app.route("/callback", methods=["GET"])
 def callback():
     code = request.args.get("code")
-    user_authorization = retrieve_user_authorization(code)
+    user_data = exchange_code_for_user_data(code)
 
     session_id = uuid.uuid4()
-    save_session(session_id, user_authorization)
+    save('Sessions', session_id, user_data.__dict__)
     session["session_id"] = session_id
 
     response = redirect(app_properties.redirect_url, code=302)
@@ -46,23 +54,25 @@ def check_authorization():
 @app.route("/profile/username", methods=["GET"])
 def get_profile():
     if is_user_authorized():
-        instagram_client = get_instagram_client(get_user_authorization(session['session_id']).access_token)
-        username = instagram_client.get_user_profile().get('username')
-        return jsonify({'username': username})
+        user_data = retrieve_user_data(session['session_id'])
+        if user_data is not None:
+            instagram_client = get_instagram_client(user_data.access_token)
+            username = instagram_client.get_user_profile().get('username')
+            return jsonify({'username': username})
     return jsonify()
 
 
 @app.route("/getPhotos", methods=["GET"])
 def get_photos():
-    # search_key = request.args.get('key')
-    media_urls = []
+    search_key = request.args.get('key')
     if is_user_authorized():
-        instagram_client = get_instagram_client(get_user_authorization(session['session_id']).access_token)
-        media_list = instagram_client.get_user_media()
-        for media in media_list['data']:
-            if media['media_type'] == 'IMAGE':
-                media_urls.append(media['media_url'])
-    return jsonify({'media_urls': media_urls})
+        user_data = retrieve_user_data(session['session_id'])
+        if user_data is not None:
+            instagram_client = get_instagram_client(user_data.access_token)
+            media_list = instagram_client.get_user_media()
+            process_user_media(media_list)
+
+    return jsonify()
 
 
 @app.route("/logout", methods=["GET"])
@@ -83,13 +93,13 @@ def get_instagram_client(access_token=None):
     return instagram_basic_display
 
 
-def retrieve_user_authorization(code):
+def exchange_code_for_user_data(code):
     response = get_instagram_client().get_o_auth_token(code)
     user_id = response.get("user_id")
-    current_time = datetime.now()
+    # current_time = datetime.now()
     response = get_instagram_client().get_long_lived_token(response.get("access_token"))
-    expires_at = current_time + timedelta(seconds=response.get("expires_in"))
-    return UserAuthorization(user_id, response.get("access_token"), expires_at)
+    # expires_at = current_time + timedelta(seconds=response.get("expires_in"))
+    return UserData(user_id, response.get("access_token"))
 
 
 def is_user_authorized():
@@ -98,12 +108,79 @@ def is_user_authorized():
     return False
 
 
-def save_session(session_id, user_authorization):
-    db[session_id] = user_authorization
+def process_user_media(media_list):
+    for media in media_list['data']:
+        if media['media_type'] == 'IMAGE':
+            result = retrieve('Media', media['id'])
+            if result is None:
+                # process the new media and get predictions
+                # save the new media along with predictions
+                photo_classification = classify(media['media_url'])
+                photo_detection = detection(media['media_url'])
+                media_data = MediaData(media['media_url'], photo_classification, photo_detection)
+                save('Media', media['id'], media_data.__dict__)
 
 
-def get_user_authorization(session_id):
-    return db[session_id]
+def detection(url):
+    response = requests.get(url)
+    image_bytes = io.BytesIO(response.content)
+
+    # download or load the model from disk
+    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True,
+                                                                 min_size=800)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    image = Image.open(image_bytes)
+    model.eval().to(device)
+    boxes, classes, labels = detect_utils.predict(image, model, device, app_properties.detection_threshold)
+    result_set = set()
+    for label in labels:
+        result_set.add(label.item())
+    result = list(result_set)
+    return result
+
+
+def classify(url):
+    resnet = models.resnet101(pretrained=True)
+    response = requests.get(url)
+    image_bytes = io.BytesIO(response.content)
+
+    img = Image.open(image_bytes)
+
+    preprocess = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]
+        )])
+
+    img_preprocessed = preprocess(img)
+
+    batch_img_cat_tensor = torch.unsqueeze(img_preprocessed, 0)
+
+    resnet.eval()
+
+    out = resnet(batch_img_cat_tensor)
+
+    with open('imagenet_classes.txt') as f:
+        labels = [line.strip() for line in f.readlines()]
+
+    _, index = torch.max(out, 1)
+
+    percentage = torch.nn.functional.softmax(out, dim=1)[0] * 100
+
+    # print(labels[index[0]], percentage[index[0]].item())
+
+    _, indices = torch.sort(out, descending=True)
+    i = 0
+    result = []
+    while indices[0][i]:
+        if percentage[indices[0][i]].item() > app_properties.classification_threshold * 100:
+            result.append(indices[0][i].item())
+        i += 1
+    return result
 
 
 if __name__ == "__main__":
