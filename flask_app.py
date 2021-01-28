@@ -1,7 +1,5 @@
 import io
 import uuid
-import os
-import sys
 
 import requests
 import torch
@@ -18,6 +16,8 @@ import detect_utils
 from database import save, retrieve_user_data, retrieve
 from media_data import MediaData
 from user_data import UserData
+from labels import IMAGENET_DATASET_LABELS as imagenet_dataset
+from labels import COCO_DATASET_LABELS as coco_names
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
@@ -66,7 +66,7 @@ def get_profile():
 
 @app.route("/getPhotos", methods=["GET"])
 def get_photos():
-    search_key = request.args.get('key')
+    search_key = request.args.get('key').strip().lower()
     results = set()
     if is_user_authorized():
         user_data = retrieve_user_data(session['session_id'])
@@ -78,15 +78,17 @@ def get_photos():
                 media_data = retrieve('Media', data['id'])
                 if 'detection' in media_data.keys():
                     for detection_id in media_data['detection']:
-                        if detect_utils.coco_names[detection_id] == search_key:
+                        if search_key in split_words(coco_names[detection_id]):
                             results.add(media_data['url'])
                 if 'classification' in media_data.keys():
                     for classification_id in media_data['classification']:
-                        lines = read_data_from_file('imagenet_classes.txt')
-                        words = separate_words_from_line(lines[classification_id])
-                        for word in words:
-                            if word == search_key:
-                                results.add(media_data['url'])
+                        if search_key in split_words(imagenet_dataset[classification_id].lower()):
+                            results.add(media_data['url'])
+                        # lines = read_data_from_file('imagenet_classes.txt')
+                        # words = separate_words_from_line(lines[classification_id])
+                        # for word in words:
+                        #     if word == search_key:
+                        #         results.add(media_data['url'])
     print("before None")
     if results is None:
         results = "There aren't photos with the word you searched!"
@@ -208,7 +210,7 @@ def read_data_from_file(file):
     return results
 
 
-def separate_words_from_line(line):
+def split_words(line):
     result = line.split(', ')
     return result
 
