@@ -3,3 +3,4 @@ class MediaData:
         self.url = url
         self.classification = classification
         self.detection = detection
+

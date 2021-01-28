@@ -9,15 +9,12 @@ transform = transforms.Compose([
     transforms.ToTensor(),
 ])
 
+
 def predict(image, model, device, detection_threshold):
     # transform the image to tensor
     image = transform(image).to(device)
-    image = image.unsqueeze(0) # add a batch dimension
-    outputs = model(image) # get the predictions on the image
-    # print the results individually
-    # print(f"BOXES: {outputs[0]['boxes']}")
-    # print(f"LABELS: {outputs[0]['labels']}")
-    # print(f"SCORES: {outputs[0]['scores']}")
+    image = image.unsqueeze(0)  # add a batch dimension
+    outputs = model(image)  # get the predictions on the image
     # get all the predicited class names
     pred_classes = [coco_names[i] for i in outputs[0]['labels'].cpu().numpy()]
     # get score for all the predicted objects
@@ -27,4 +24,3 @@ def predict(image, model, device, detection_threshold):
     # get boxes above the threshold score
     boxes = pred_bboxes[pred_scores >= detection_threshold].astype(np.int32)
     return boxes, pred_classes, outputs[0]['labels']
-

@@ -1,9 +1,11 @@
 import io
 import uuid
-import torchvision
+import os
+import sys
 
 import requests
 import torch
+import torchvision
 from PIL import Image
 from flask import Flask, session, jsonify, request, redirect
 from flask_cors import CORS
@@ -14,8 +16,8 @@ from torchvision import transforms
 import app_properties
 import detect_utils
 from database import save, retrieve_user_data, retrieve
-from user_data import UserData
 from media_data import MediaData
+from user_data import UserData
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
@@ -65,14 +67,32 @@ def get_profile():
 @app.route("/getPhotos", methods=["GET"])
 def get_photos():
     search_key = request.args.get('key')
+    results = set()
     if is_user_authorized():
         user_data = retrieve_user_data(session['session_id'])
         if user_data is not None:
             instagram_client = get_instagram_client(user_data.access_token)
             media_list = instagram_client.get_user_media()
             process_user_media(media_list)
-
-    return jsonify()
+            for data in media_list['data']:
+                media_data = retrieve('Media', data['id'])
+                if 'detection' in media_data.keys():
+                    for detection_id in media_data['detection']:
+                        if detect_utils.coco_names[detection_id] == search_key:
+                            results.add(media_data['url'])
+                if 'classification' in media_data.keys():
+                    for classification_id in media_data['classification']:
+                        lines = read_data_from_file('imagenet_classes.txt')
+                        words = separate_words_from_line(lines[classification_id])
+                        for word in words:
+                            if word == search_key:
+                                results.add(media_data['url'])
+    print("before None")
+    if results is None:
+        results = "There aren't photos with the word you searched!"
+        return jsonify(results)
+    result = list(results)
+    return jsonify({'media_urls': result})
 
 
 @app.route("/logout", methods=["GET"])
@@ -113,8 +133,6 @@ def process_user_media(media_list):
         if media['media_type'] == 'IMAGE':
             result = retrieve('Media', media['id'])
             if result is None:
-                # process the new media and get predictions
-                # save the new media along with predictions
                 photo_classification = classify(media['media_url'])
                 photo_detection = detection(media['media_url'])
                 media_data = MediaData(media['media_url'], photo_classification, photo_detection)
@@ -125,7 +143,6 @@ def detection(url):
     response = requests.get(url)
     image_bytes = io.BytesIO(response.content)
 
-    # download or load the model from disk
     model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True,
                                                                  min_size=800)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -183,8 +200,22 @@ def classify(url):
     return result
 
 
+def read_data_from_file(file):
+    results = []
+    file_contain = open(file)
+    for line in file_contain:
+        results.append(line.rstrip())
+    return results
+
+
+def separate_words_from_line(line):
+    result = line.split(', ')
+    return result
+
+
 if __name__ == "__main__":
     app.secret_key = "super secret key"
     app.config['SESSION_COOKIE_SAMESITE'] = "None"
     app.config['SESSION_COOKIE_SECURE'] = True
     app.run(debug=True, port=8000)
+    # print(read_data_from_file('imagenet_classes.txt'))
