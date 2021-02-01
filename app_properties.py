@@ -6,4 +6,4 @@ redirect_url = "http://localhost:4200/search"
 redirect_home = "http://localhost:4200/home"
 callback_url = "https://b38332cbac73.ngrok.io/callback"
 classification_threshold = 0.6
-detection_threshold = 0.8
+detection_threshold = 0.6

@@ -1,22 +1,14 @@
-import io
 import uuid
 
-import requests
-import torch
-import torchvision
-from PIL import Image
 from flask import Flask, session, jsonify, request, redirect
 from flask_cors import CORS
 from instagram_basic_display.InstagramBasicDisplay import InstagramBasicDisplay
-from torchvision import models
-from torchvision import transforms
 
 import app_properties
-import detect_utils
 from database import save, retrieve_user_data, retrieve, save_user_data
-from labels import COCO_DATASET_LABELS
-from labels import IMAGENET_DATASET_LABELS
+from labels import COCO_DATASET_LABELS, IMAGENET_DATASET_LABELS
 from media_data import MediaData
+from prediction import get_detections, get_classifications
 from user_data import UserData
 
 app = Flask(__name__)
@@ -135,68 +127,10 @@ def process_user_media(media_list):
         if media['media_type'] == 'IMAGE':
             result = retrieve('Media', media['id'])
             if result is None:
-                photo_classification = classify(media['media_url'])
-                photo_detection = detection(media['media_url'])
+                photo_classification = get_classifications(media['media_url'])
+                photo_detection = get_detections(media['media_url'])
                 media_data = MediaData(media['media_url'], photo_classification, photo_detection)
                 save('Media', media['id'], media_data.__dict__)
-
-
-def detection(url):
-    response = requests.get(url)
-    image_bytes = io.BytesIO(response.content)
-
-    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True,
-                                                                 min_size=800)
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    image = Image.open(image_bytes)
-    model.eval().to(device)
-    boxes, classes, labels = detect_utils.predict(image, model, device, app_properties.detection_threshold)
-    result_set = set()
-    for label in labels:
-        result_set.add(label.item())
-    result = list(result_set)
-    return result
-
-
-def classify(url):
-    resnet = models.resnet101(pretrained=True)
-    response = requests.get(url)
-    image_bytes = io.BytesIO(response.content)
-
-    img = Image.open(image_bytes)
-
-    preprocess = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
-        )])
-
-    img_preprocessed = preprocess(img)
-
-    batch_img_cat_tensor = torch.unsqueeze(img_preprocessed, 0)
-
-    resnet.eval()
-
-    out = resnet(batch_img_cat_tensor)
-
-    _, index = torch.max(out, 1)
-
-    percentage = torch.nn.functional.softmax(out, dim=1)[0] * 100
-
-    # print(labels[index[0]], percentage[index[0]].item())
-
-    _, indices = torch.sort(out, descending=True)
-    i = 0
-    result = []
-    while indices[0][i]:
-        if percentage[indices[0][i]].item() > app_properties.classification_threshold * 100:
-            result.append(indices[0][i].item())
-        i += 1
-    return result
 
 
 def read_data_from_file(file):
