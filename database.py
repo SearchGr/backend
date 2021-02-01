@@ -1,5 +1,9 @@
-import pyrebase
+import json
 
+import pyrebase
+from cryptography.fernet import Fernet
+
+import app_properties
 from user_data import UserData
 
 firebase_config = {
@@ -15,6 +19,7 @@ firebase_config = {
 
 firebase = pyrebase.initialize_app(firebase_config)
 database = firebase.database()
+cipher_suite = Fernet(app_properties.encryption_key)
 
 
 def get_sessions():
@@ -32,8 +37,14 @@ def retrieve(node, key):
     return result.val()
 
 
+def save_user_data(session_id, user_data):
+    encoded_user_data = cipher_suite.encrypt((json.dumps(user_data.__dict__)).encode())
+    save('Sessions', session_id, encoded_user_data.decode())
+
+
 def retrieve_user_data(session_id):
     result = retrieve('Sessions', session_id)
     if result is None:
         return None
-    return UserData(result['user_id'], result['access_token'])
+    decoded_user_data = json.loads(cipher_suite.decrypt(result.encode()).decode())
+    return UserData(decoded_user_data['user_id'], decoded_user_data['access_token'])

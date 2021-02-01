@@ -13,11 +13,11 @@ from torchvision import transforms
 
 import app_properties
 import detect_utils
-from database import save, retrieve_user_data, retrieve
+from database import save, retrieve_user_data, retrieve, save_user_data
+from labels import COCO_DATASET_LABELS
+from labels import IMAGENET_DATASET_LABELS
 from media_data import MediaData
 from user_data import UserData
-from labels import IMAGENET_DATASET_LABELS as imagenet_dataset
-from labels import COCO_DATASET_LABELS as coco_names
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
@@ -38,7 +38,7 @@ def callback():
     user_data = exchange_code_for_user_data(code)
 
     session_id = uuid.uuid4()
-    save('Sessions', session_id, user_data.__dict__)
+    save_user_data(session_id, user_data)
     session["session_id"] = session_id
 
     response = redirect(app_properties.redirect_url, code=302)
@@ -78,11 +78,11 @@ def get_photos():
                 media_data = retrieve('Media', data['id'])
                 if 'detection' in media_data.keys():
                     for detection_id in media_data['detection']:
-                        if search_key in split_words(coco_names[detection_id]):
+                        if search_key in split_words(COCO_DATASET_LABELS[detection_id]):
                             results.add(media_data['url'])
                 if 'classification' in media_data.keys():
                     for classification_id in media_data['classification']:
-                        if search_key in split_words(imagenet_dataset[classification_id].lower()):
+                        if search_key in split_words(IMAGENET_DATASET_LABELS[classification_id].lower()):
                             results.add(media_data['url'])
                         # lines = read_data_from_file('imagenet_classes.txt')
                         # words = separate_words_from_line(lines[classification_id])
@@ -183,9 +183,6 @@ def classify(url):
 
     out = resnet(batch_img_cat_tensor)
 
-    with open('imagenet_classes.txt') as f:
-        labels = [line.strip() for line in f.readlines()]
-
     _, index = torch.max(out, 1)
 
     percentage = torch.nn.functional.softmax(out, dim=1)[0] * 100
@@ -216,8 +213,7 @@ def split_words(line):
 
 
 if __name__ == "__main__":
-    app.secret_key = "super secret key"
+    app.secret_key = app_properties.flask_app_secret
     app.config['SESSION_COOKIE_SAMESITE'] = "None"
     app.config['SESSION_COOKIE_SECURE'] = True
     app.run(debug=True, port=8000)
-    # print(read_data_from_file('imagenet_classes.txt'))
