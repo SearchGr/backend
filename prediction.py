@@ -3,7 +3,6 @@ import io
 import numpy
 import requests
 import torch
-import torchvision
 from PIL import Image
 from torch.nn import functional
 from torchvision import models
@@ -32,12 +31,7 @@ def get_detections(url):
     output = detector(image)
     prediction_scores = output[0]['scores'].detach().cpu().numpy()
     labels = output[0]['labels'][prediction_scores >= app_properties.detection_threshold]
-
-    result_set = set()
-    for label in labels:
-        result_set.add(label.item())
-    result = list(result_set)
-    return result
+    return labels.unique().tolist()
 
 
 def get_classifications(url):
@@ -52,4 +46,3 @@ def prepare_image(url, transformations):
     image_bytes = io.BytesIO(response.content)
     image = transformations(Image.open(image_bytes))
     return image.unsqueeze(0)
-
