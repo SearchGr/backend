@@ -52,8 +52,3 @@ def process_user_media(media_list):
 
 def start_async_user_media_processing(media_list):
     Thread(target=process_user_media, args=(media_list,), daemon=True).start()
-
-
-def split_words(line):
-    result = line.split(', ')
-    return result

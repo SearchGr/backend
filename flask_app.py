@@ -6,7 +6,7 @@ from flask_cors import CORS
 import app_properties
 from database import retrieve_user_data, retrieve, save_user_data
 from labels import COCO_DATASET_LABELS, IMAGENET_DATASET_LABELS
-from utils import is_user_authorized, split_words, get_instagram_client, \
+from utils import is_user_authorized, get_instagram_client, \
     exchange_code_for_user_data, start_async_user_media_processing
 
 app = Flask(__name__)
@@ -65,11 +65,11 @@ def get_photos():
                 media_data = retrieve('Media', data['id'])
                 if 'detection' in media_data.keys():
                     for detection_id in media_data['detection']:
-                        if search_key in split_words(COCO_DATASET_LABELS[detection_id]):
+                        if search_key in COCO_DATASET_LABELS[detection_id]:
                             results.add(media_data['url'])
                 if 'classification' in media_data.keys():
                     for classification_id in media_data['classification']:
-                        if search_key in split_words(IMAGENET_DATASET_LABELS[classification_id].lower()):
+                        if search_key in IMAGENET_DATASET_LABELS[classification_id].lower():
                             results.add(media_data['url'])
     if results is None:
         results = "There aren't photos with the word you searched!"
