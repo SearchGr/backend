@@ -4,10 +4,9 @@ from flask import Flask, session, jsonify, request, redirect
 from flask_cors import CORS
 
 import app_properties
-from database import retrieve_user_data, retrieve, save_user_data
-from labels import COCO_DATASET_LABELS, IMAGENET_DATASET_LABELS
+from database import retrieve_user_data, save_user_data
 from utils import is_user_authorized, get_instagram_client, \
-    exchange_code_for_user_data, start_async_user_media_processing
+    exchange_code_for_user_data, start_async_user_media_processing, filter_media_by_search_key
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
@@ -54,28 +53,16 @@ def get_profile():
 
 @app.route("/getPhotos", methods=["GET"])
 def get_photos():
-    search_key = request.args.get('key').strip().lower()
-    results = set()
     if is_user_authorized():
         user_data = retrieve_user_data(session['session_id'])
         if user_data is not None:
+            search_key = request.args.get('key').strip().lower()
             instagram_client = get_instagram_client(user_data.access_token)
-            media_list = instagram_client.get_user_media()['data]']
-            for data in media_list:
-                media_data = retrieve('Media', data['id'])
-                if 'detection' in media_data.keys():
-                    for detection_id in media_data['detection']:
-                        if search_key in COCO_DATASET_LABELS[detection_id]:
-                            results.add(media_data['url'])
-                if 'classification' in media_data.keys():
-                    for classification_id in media_data['classification']:
-                        if search_key in IMAGENET_DATASET_LABELS[classification_id].lower():
-                            results.add(media_data['url'])
-    if results is None:
-        results = "There aren't photos with the word you searched!"
-        return jsonify(results)
-    result = list(results)
-    return jsonify({'media_urls': result})
+            media_list = instagram_client.get_user_media()['data']
+            result = filter_media_by_search_key(media_list, search_key)
+            if result:
+                return jsonify({'media_urls': result})
+    return jsonify()
 
 
 @app.route("/logout", methods=["GET"])

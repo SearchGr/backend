@@ -1,14 +1,17 @@
 from threading import Thread
 
+from PyDictionary import PyDictionary
 from flask import session
 from instagram_basic_display.InstagramBasicDisplay import InstagramBasicDisplay
 
 import app_properties
 from database import retrieve, save
+from labels import COCO_DATASET_LABELS, IMAGENET_DATASET_LABELS
 from media_data import MediaData
 from prediction import get_classifications, get_detections
 from user_data import UserData
 
+dictionary = PyDictionary()
 instagram_basic_display = InstagramBasicDisplay(app_id=app_properties.app_id,
                                                 app_secret=app_properties.app_secret,
                                                 redirect_url=app_properties.callback_url)
@@ -39,16 +42,53 @@ def is_user_authorized():
     return False
 
 
-def process_user_media(media_list):
+def process_user_media(media):
+    photo_classification = get_classifications(media['media_url'])
+    photo_detection = get_detections(media['media_url'])
+    media_data = MediaData(media['media_url'], photo_classification, photo_detection)
+    save('Media', media['id'], media_data.__dict__)
+
+
+def start_async_user_media_processing(media_list):
     for media in media_list:
         if media['media_type'] == 'IMAGE':
             result = retrieve('Media', media['id'])
             if result is None:
-                photo_classification = get_classifications(media['media_url'])
-                photo_detection = get_detections(media['media_url'])
-                media_data = MediaData(media['media_url'], photo_classification, photo_detection)
-                save('Media', media['id'], media_data.__dict__)
+                Thread(target=process_user_media, args=(media,), daemon=True).start()
 
 
-def start_async_user_media_processing(media_list):
-    Thread(target=process_user_media, args=(media_list,), daemon=True).start()
+def filter_media_by_search_key(media_list, search_key):
+    results = set()
+    search_keys = {search_key}
+    enhance_with_synonyms(search_keys)
+    search_keys = to_lowercase_set(search_keys)
+    for data in media_list:
+        media_data = retrieve('Media', data['id'])
+        labels = to_lowercase_set(get_predicted_labels(media_data))
+        if search_keys.intersection(labels):
+            results.add(media_data['url'])
+    return list(results)
+
+
+def get_predicted_labels(media_data):
+    labels = set()
+    if 'detection' in media_data.keys():
+        for detection_id in media_data['detection']:
+            labels.update(COCO_DATASET_LABELS[detection_id])
+    if 'classification' in media_data.keys():
+        for classification_id in media_data['classification']:
+            labels.update(IMAGENET_DATASET_LABELS[classification_id])
+    return labels
+
+
+def enhance_with_synonyms(labels):
+    synonyms = set()
+    for label in labels:
+        label_synonyms = dictionary.synonym(label)
+        if label_synonyms:
+            synonyms.update(label_synonyms)
+    labels.update(synonyms)
+
+
+def to_lowercase_set(input_set):
+    return set(map(str.lower, input_set))
