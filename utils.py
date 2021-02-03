@@ -1,4 +1,4 @@
-from threading import Thread
+from concurrent.futures.thread import ThreadPoolExecutor
 
 from PyDictionary import PyDictionary
 from flask import session
@@ -12,6 +12,7 @@ from prediction import get_classifications, get_detections
 from user_data import UserData
 
 dictionary = PyDictionary()
+executor = ThreadPoolExecutor(max_workers=3)
 instagram_basic_display = InstagramBasicDisplay(app_id=app_properties.app_id,
                                                 app_secret=app_properties.app_secret,
                                                 redirect_url=app_properties.callback_url)
@@ -54,7 +55,7 @@ def start_async_user_media_processing(media_list):
         if media['media_type'] == 'IMAGE':
             result = retrieve('Media', media['id'])
             if result is None:
-                Thread(target=process_user_media, args=(media,), daemon=True).start()
+                executor.submit(process_user_media, media=media)
 
 
 def filter_media_by_search_key(media_list, search_key):
