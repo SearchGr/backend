@@ -59,7 +59,7 @@ def start_async_user_media_processing(media_list):
 
 
 def filter_media_by_search_key(media_list, search_key):
-    results = set()
+    results = []
     search_keys = {search_key}
     enhance_with_synonyms(search_keys)
     search_keys = to_lowercase_set(search_keys)
@@ -67,8 +67,8 @@ def filter_media_by_search_key(media_list, search_key):
         media_data = retrieve('Media', data['id'])
         labels = to_lowercase_set(get_predicted_labels(media_data))
         if search_keys.intersection(labels):
-            results.add(media_data['url'])
-    return list(results)
+            results.append(media_data['url'])
+    return results
 
 
 def get_predicted_labels(media_data):
@@ -82,13 +82,13 @@ def get_predicted_labels(media_data):
     return labels
 
 
-def enhance_with_synonyms(labels):
+def enhance_with_synonyms(words):
     synonyms = set()
-    for label in labels:
-        label_synonyms = dictionary.synonym(label)
-        if label_synonyms:
-            synonyms.update(label_synonyms)
-    labels.update(synonyms)
+    for label in words:
+        word_synonyms = dictionary.synonym(label)
+        if word_synonyms:
+            synonyms.update(word_synonyms)
+    words.update(synonyms)
 
 
 def to_lowercase_set(input_set):
