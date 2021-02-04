@@ -1,45 +1,15 @@
 from threading import Thread
 
 from PyDictionary import PyDictionary
-from flask import session
-from instagram_basic_display.InstagramBasicDisplay import InstagramBasicDisplay
 
-import app_properties
-from processing_queue import ProcessingQueue
 from database import retrieve, save
 from labels import COCO_DATASET_LABELS, IMAGENET_DATASET_LABELS
 from media_data import MediaData
 from prediction import get_classifications, get_detections
-from user_data import UserData
+from processing_queue import ProcessingQueue
 
 dictionary = PyDictionary()
-instagram_basic_display = InstagramBasicDisplay(app_id=app_properties.app_id,
-                                                app_secret=app_properties.app_secret,
-                                                redirect_url=app_properties.callback_url)
 media_queue_to_process = ProcessingQueue(maxsize=0)
-
-
-def get_instagram_client(access_token=None):
-    if access_token:
-        instagram_client = InstagramBasicDisplay(app_id=app_properties.app_id,
-                                                 app_secret=app_properties.app_secret,
-                                                 redirect_url=app_properties.callback_url)
-        instagram_client.set_access_token(access_token)
-        return instagram_client
-    return instagram_basic_display
-
-
-def exchange_code_for_user_data(code):
-    response = get_instagram_client().get_o_auth_token(code)
-    user_id = response.get("user_id")
-    response = get_instagram_client().get_long_lived_token(response.get("access_token"))
-    return UserData(user_id, response.get("access_token"))
-
-
-def is_user_authorized():
-    if 'session_id' in session.keys():
-        return True
-    return False
 
 
 def start_media_processing_workers(number_of_workers):

@@ -5,9 +5,8 @@ from flask_cors import CORS
 
 import app_properties
 from database import retrieve_user_data, save_user_data
-from utils import is_user_authorized, get_instagram_client, \
-    exchange_code_for_user_data, start_all_user_media_processing, filter_media_by_search_key, \
-    start_media_processing_workers
+from instagram_utils import get_instagram_client, exchange_code_for_user_data
+from utils import start_all_user_media_processing, filter_media_by_search_key, start_media_processing_workers
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
@@ -73,6 +72,12 @@ def logout():
         session.pop('session_id')
     response = redirect(app_properties.redirect_home, code=302)
     return response
+
+
+def is_user_authorized():
+    if 'session_id' in session.keys():
+        return True
+    return False
 
 
 if __name__ == "__main__":
