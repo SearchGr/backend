@@ -6,10 +6,12 @@ from flask_cors import CORS
 import app_properties
 from database import retrieve_user_data, save_user_data
 from utils import is_user_authorized, get_instagram_client, \
-    exchange_code_for_user_data, start_async_user_media_processing, filter_media_by_search_key
+    exchange_code_for_user_data, start_all_user_media_processing, filter_media_by_search_key, \
+    start_media_processing_workers
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
+NUM_WORKER_THREADS = 3
 
 
 @app.route("/login", methods=["GET"])
@@ -27,7 +29,7 @@ def callback():
     session["session_id"] = session_id
 
     instagram_client = get_instagram_client(user_data.access_token)
-    start_async_user_media_processing(instagram_client.get_user_media()['data'])
+    start_all_user_media_processing(instagram_client.get_user_media()['data'])
 
     return redirect(app_properties.redirect_url, code=302)
 
@@ -74,6 +76,7 @@ def logout():
 
 
 if __name__ == "__main__":
+    start_media_processing_workers(app_properties.NUMBER_OF_MEDIA_PROCESSING_WORKERS)
     app.secret_key = app_properties.flask_app_secret
     app.config['SESSION_COOKIE_SAMESITE'] = "None"
     app.config['SESSION_COOKIE_SECURE'] = True

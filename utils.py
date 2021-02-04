@@ -1,10 +1,11 @@
-from concurrent.futures.thread import ThreadPoolExecutor
+from threading import Thread
 
 from PyDictionary import PyDictionary
 from flask import session
 from instagram_basic_display.InstagramBasicDisplay import InstagramBasicDisplay
 
 import app_properties
+from processing_queue import ProcessingQueue
 from database import retrieve, save
 from labels import COCO_DATASET_LABELS, IMAGENET_DATASET_LABELS
 from media_data import MediaData
@@ -12,10 +13,10 @@ from prediction import get_classifications, get_detections
 from user_data import UserData
 
 dictionary = PyDictionary()
-executor = ThreadPoolExecutor(max_workers=3)
 instagram_basic_display = InstagramBasicDisplay(app_id=app_properties.app_id,
                                                 app_secret=app_properties.app_secret,
                                                 redirect_url=app_properties.callback_url)
+media_queue_to_process = ProcessingQueue(maxsize=0)
 
 
 def get_instagram_client(access_token=None):
@@ -31,9 +32,7 @@ def get_instagram_client(access_token=None):
 def exchange_code_for_user_data(code):
     response = get_instagram_client().get_o_auth_token(code)
     user_id = response.get("user_id")
-    # current_time = datetime.now()
     response = get_instagram_client().get_long_lived_token(response.get("access_token"))
-    # expires_at = current_time + timedelta(seconds=response.get("expires_in"))
     return UserData(user_id, response.get("access_token"))
 
 
@@ -43,19 +42,33 @@ def is_user_authorized():
     return False
 
 
+def start_media_processing_workers(number_of_workers):
+    for i in range(number_of_workers):
+        Thread(target=handle_user_media_processing, daemon=True).start()
+
+
+def handle_user_media_processing():
+    while True:
+        media = media_queue_to_process.get()
+        print('Processing media with id {}'.format(media[0]))
+        process_user_media(media)
+        media_queue_to_process.task_done()
+
+
 def process_user_media(media):
-    photo_classification = get_classifications(media['media_url'])
-    photo_detection = get_detections(media['media_url'])
-    media_data = MediaData(media['media_url'], photo_classification, photo_detection)
-    save('Media', media['id'], media_data.__dict__)
+    media_id, media_url = media
+    photo_classification = get_classifications(media_url)
+    photo_detection = get_detections(media_url)
+    media_data = MediaData(media_url, photo_classification, photo_detection)
+    save('Media', media_id, media_data.__dict__)
 
 
-def start_async_user_media_processing(media_list):
+def start_all_user_media_processing(media_list):
     for media in media_list:
         if media['media_type'] == 'IMAGE':
             result = retrieve('Media', media['id'])
             if result is None:
-                executor.submit(process_user_media, media=media)
+                media_queue_to_process.put((media['id'], media['media_url']))
 
 
 def filter_media_by_search_key(media_list, search_key):
