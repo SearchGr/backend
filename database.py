@@ -19,7 +19,7 @@ firebase_config = {
 
 firebase = pyrebase.initialize_app(firebase_config)
 database = firebase.database()
-cipher_suite = Fernet(app_properties.encryption_key)
+cipher_suite = Fernet(app_properties.ENCRYPTION_KEY)
 
 
 def get_sessions():

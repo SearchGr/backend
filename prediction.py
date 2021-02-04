@@ -30,7 +30,7 @@ def get_detections(url):
     image = prepare_image(url, transforms.ToTensor())
     output = detector(image)
     prediction_scores = output[0]['scores'].detach().cpu().numpy()
-    labels = output[0]['labels'][prediction_scores >= app_properties.detection_threshold]
+    labels = output[0]['labels'][prediction_scores >= app_properties.DETECTION_THRESHOLD]
     return labels.unique().tolist()
 
 
@@ -38,7 +38,7 @@ def get_classifications(url):
     image = prepare_image(url, classification_transforms)
     result = classifier(image)
     percentages = functional.softmax(result, dim=1)[0].detach().numpy()
-    return numpy.where(percentages > app_properties.classification_threshold)[0].tolist()
+    return numpy.where(percentages > app_properties.CLASSIFICATION_THRESHOLD)[0].tolist()
 
 
 def prepare_image(url, transformations):

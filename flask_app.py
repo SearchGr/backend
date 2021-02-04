@@ -30,7 +30,7 @@ def callback():
     instagram_client = get_instagram_client(user_data.access_token)
     start_all_user_media_processing(instagram_client.get_user_media()['data'])
 
-    return redirect(app_properties.redirect_url, code=302)
+    return redirect(app_properties.SEARCH_PAGE_URL, code=302)
 
 
 @app.route("/checkAuthorization", methods=["GET"])
@@ -70,7 +70,7 @@ def get_photos():
 def logout():
     if is_user_authorized():
         session.pop('session_id')
-    response = redirect(app_properties.redirect_home, code=302)
+    response = redirect(app_properties.HOME_PAGE_URL, code=302)
     return response
 
 
@@ -82,7 +82,7 @@ def is_user_authorized():
 
 if __name__ == "__main__":
     start_media_processing_workers(app_properties.NUMBER_OF_MEDIA_PROCESSING_WORKERS)
-    app.secret_key = app_properties.flask_app_secret
+    app.secret_key = app_properties.FLASK_APP_SECRET
     app.config['SESSION_COOKIE_SAMESITE'] = "None"
     app.config['SESSION_COOKIE_SECURE'] = True
     app.run(debug=True, port=8000)
