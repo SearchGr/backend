@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 
 from flask import Flask, session, jsonify, request, redirect
 from flask_cors import CORS
@@ -26,6 +27,7 @@ def callback():
     session_id = uuid.uuid4()
     save_user_data(session_id, user_data)
     session["session_id"] = session_id
+    session.permanent = True
 
     instagram_client = get_instagram_client(user_data.access_token)
     start_all_user_media_processing(instagram_client.get_user_media()['data'])
@@ -85,4 +87,5 @@ if __name__ == "__main__":
     app.secret_key = app_properties.FLASK_APP_SECRET
     app.config['SESSION_COOKIE_SAMESITE'] = "None"
     app.config['SESSION_COOKIE_SECURE'] = True
+    app.permanent_session_lifetime = timedelta(days=app_properties.SESSION_EXPIRATION_IN_DAYS)
     app.run(debug=True, port=8000)
