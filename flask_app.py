@@ -83,7 +83,7 @@ def get_photos():
             media_list = instagram_client.get_user_media()['data']
             result = filter_media_by_search_key(media_list, search_key)
             if result:
-                return jsonify({'media_urls': result})
+                return jsonify(result)
     return jsonify()
 
 

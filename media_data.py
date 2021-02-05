@@ -1,5 +1,4 @@
 class MediaData:
-    def __init__(self, url, classification, detection):
-        self.url = url
+    def __init__(self, classification, detection):
         self.classification = classification
         self.detection = detection

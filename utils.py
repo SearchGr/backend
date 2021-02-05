@@ -30,7 +30,7 @@ def process_user_media(media):
     media_id, media_url = media
     photo_classification = get_classifications(media_url)
     photo_detection = get_detections(media_url)
-    media_data = MediaData(media_url, photo_classification, photo_detection)
+    media_data = MediaData(photo_classification, photo_detection)
     save('Media', media_id, media_data.__dict__)
 
 
@@ -54,11 +54,11 @@ def filter_media_by_search_key(media_list, search_key):
     search_keys = {search_key}
     enhance_with_synonyms(search_keys)
     search_keys = to_lowercase_set(search_keys)
-    for data in media_list:
-        media_data = retrieve('Media', data['id'])
+    for media in media_list:
+        media_data = retrieve('Media', media['id'])
         labels = to_lowercase_set(get_predicted_labels(media_data))
         if search_keys.intersection(labels):
-            results.append(media_data['url'])
+            results.append({'url': media['media_url'], 'permalink': media['permalink']})
     return results
 
 
