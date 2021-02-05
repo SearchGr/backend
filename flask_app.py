@@ -7,7 +7,8 @@ from flask_cors import CORS
 import app_properties
 from database import retrieve_user_data, save_user_data
 from instagram_utils import get_instagram_client, exchange_code_for_user_data
-from utils import start_all_user_media_processing, filter_media_by_search_key, start_media_processing_workers
+from utils import start_all_user_media_processing, filter_media_by_search_key, start_media_processing_workers, \
+    get_processing_progress
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
@@ -28,9 +29,6 @@ def callback():
     save_user_data(session_id, user_data)
     session["session_id"] = session_id
     session.permanent = True
-
-    instagram_client = get_instagram_client(user_data.access_token)
-    start_all_user_media_processing(instagram_client.get_user_media()['data'])
 
     return redirect(app_properties.SEARCH_PAGE_URL, code=302)
 
@@ -54,7 +52,28 @@ def get_profile():
     return jsonify()
 
 
-@app.route("/getPhotos", methods=["GET"])
+@app.route("/profile/update", methods=["GET"])
+def update_profile():
+    if is_user_authorized():
+        user_data = retrieve_user_data(session['session_id'])
+        if user_data is not None:
+            instagram_client = get_instagram_client(user_data.access_token)
+            start_all_user_media_processing(instagram_client.get_user_media()['data'])
+    return jsonify()
+
+
+@app.route("/profile/progress", methods=["GET"])
+def get_progress():
+    if is_user_authorized():
+        user_data = retrieve_user_data(session['session_id'])
+        if user_data is not None:
+            instagram_client = get_instagram_client(user_data.access_token)
+            progress = get_processing_progress(instagram_client.get_user_media()['data'])
+            return jsonify({'percentage': int(progress * 100)})
+    return jsonify()
+
+
+@app.route("/photos", methods=["GET"])
 def get_photos():
     if is_user_authorized():
         user_data = retrieve_user_data(session['session_id'])

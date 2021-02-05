@@ -20,8 +20,9 @@ def start_media_processing_workers(number_of_workers):
 def handle_user_media_processing():
     while True:
         media = media_queue_to_process.get()
-        print('Processing media with id {}'.format(media[0]))
-        process_user_media(media)
+        result = retrieve('Media', media[0])
+        if result is None:
+            process_user_media(media)
         media_queue_to_process.task_done()
 
 
@@ -36,9 +37,16 @@ def process_user_media(media):
 def start_all_user_media_processing(media_list):
     for media in media_list:
         if media['media_type'] == 'IMAGE':
-            result = retrieve('Media', media['id'])
-            if result is None:
-                media_queue_to_process.put((media['id'], media['media_url']))
+            media_queue_to_process.put((media['id'], media['media_url']))
+
+
+def get_processing_progress(media_list):
+    media_tuples = set()
+    for media in media_list:
+        if media['media_type'] == 'IMAGE':
+            media_tuples.add((media['id'], media['media_url']))
+    media_count = len(media_tuples)
+    return (media_count - len(media_queue_to_process.check_tasks_in_queue(media_tuples))) / media_count
 
 
 def filter_media_by_search_key(media_list, search_key):
