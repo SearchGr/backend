@@ -84,7 +84,7 @@ def get_photos():
             result = filter_media_by_search_key(media_list, search_key)
             if result:
                 return jsonify(result)
-    return jsonify()
+    return jsonify([])
 
 
 @app.route("/logout", methods=["GET"])
