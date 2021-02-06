@@ -22,10 +22,6 @@ database = firebase.database()
 cipher_suite = Fernet(app_properties.ENCRYPTION_KEY)
 
 
-def get_sessions():
-    return database.child('Sessions')
-
-
 def save(node, key, value):
     database.child(node).child(key).set(value)
 
