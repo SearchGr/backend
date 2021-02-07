@@ -1,10 +1,10 @@
 APP_ID = "430654321455319"
 APP_SECRET = "2f44dc5f274a2a96469c6a7361df46ea"
 ENCRYPTION_KEY = b'4n4aP12ECqHN-ipG70WTjwY3Q4ETXs42FJpkfOugCwk='
-FLASK_APP_SECRET = "super secret key"
+FLASK_APP_SECRET = "LMJpgDYDlh-zNF8v53z__s1A2uhOnKmtnjaxWsdsagQ="
 SEARCH_PAGE_URL = "http://localhost:4200/search"
 HOME_PAGE_URL = "http://localhost:4200/home"
-CALLBACK_URL = "https://2cc8f52e43af.ngrok.io/callback"
+CALLBACK_URL = "https://0251597cd1e1.ngrok.io/callback"
 CLASSIFICATION_THRESHOLD = 0.75
 DETECTION_THRESHOLD = 0.75
 NUMBER_OF_MEDIA_PROCESSING_WORKERS = 3
