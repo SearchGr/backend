@@ -4,14 +4,24 @@ from queue import Queue
 class ProcessingQueue(Queue):
     def _init(self, maxsize):
         self.queue = set()
+        self.in_process_items = set()
 
     def _put(self, item):
         self.queue.add(item)
 
     def _get(self):
-        return self.queue.pop()
+        item = self.queue.pop()
+        self.in_process_items.add(item)
+        return item
 
-    def check_tasks_in_queue(self, tasks):
+    def finalize_task(self, item):
         with self.mutex:
-            x = self.queue.intersection(tasks)
-        return x
+            if item in self.in_process_items:
+                self.in_process_items.remove(item)
+        self.task_done()
+
+    def check_items_in_queue(self, items):
+        with self.mutex:
+            unprocessed_items = self.queue.intersection(items)
+            in_progress_items = self.in_process_items.intersection(items)
+        return unprocessed_items.union(in_progress_items)
