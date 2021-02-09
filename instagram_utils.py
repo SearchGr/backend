@@ -23,3 +23,12 @@ def exchange_code_for_user_data(code):
     user_id = response.get("user_id")
     response = get_instagram_client().get_long_lived_token(response.get("access_token"))
     return UserData(user_id, response.get("access_token"))
+
+
+def get_all_user_media(instagram_client):
+    all_media = []
+    media = instagram_client.get_user_media()
+    while media is not None:
+        all_media += media['data']
+        media = instagram_client.pagination(media)
+    return all_media

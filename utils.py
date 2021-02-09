@@ -69,7 +69,8 @@ def get_predicted_labels(media_data):
             labels.update(COCO_DATASET_LABELS[detection_id])
     if 'classification' in media_data.keys():
         for classification_id in media_data['classification']:
-            labels.update(IMAGENET_DATASET_LABELS[classification_id])
+            if classification_id is not -1:
+                labels.update(IMAGENET_DATASET_LABELS[classification_id])
     return labels
 
 

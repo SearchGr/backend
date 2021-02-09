@@ -6,7 +6,7 @@ from flask_cors import CORS
 
 import app_properties
 from database import retrieve_user_data, save_user_data
-from instagram_utils import get_instagram_client, exchange_code_for_user_data
+from instagram_utils import get_instagram_client, exchange_code_for_user_data, get_all_user_media
 from utils import start_all_user_media_processing, filter_media_by_search_key, start_media_processing_workers, \
     get_processing_progress
 
@@ -58,7 +58,9 @@ def update_profile():
         user_data = retrieve_user_data(session['session_id'])
         if user_data is not None:
             instagram_client = get_instagram_client(user_data.access_token)
-            start_all_user_media_processing(instagram_client.get_user_media()['data'])
+            media = get_all_user_media(instagram_client)
+            start_all_user_media_processing(media)
+
     return jsonify()
 
 
@@ -68,7 +70,7 @@ def get_progress():
         user_data = retrieve_user_data(session['session_id'])
         if user_data is not None:
             instagram_client = get_instagram_client(user_data.access_token)
-            progress = get_processing_progress(instagram_client.get_user_media()['data'])
+            progress = get_processing_progress(get_all_user_media(instagram_client))
             return jsonify({'percentage': int(progress * 100)})
     return jsonify()
 
@@ -80,8 +82,8 @@ def get_photos():
         if user_data is not None:
             search_key = request.args.get('key').strip().lower()
             instagram_client = get_instagram_client(user_data.access_token)
-            media_list = instagram_client.get_user_media()['data']
-            result = filter_media_by_search_key(media_list, search_key)
+            media = get_all_user_media(instagram_client)
+            result = filter_media_by_search_key(media, search_key)
             if result:
                 return jsonify(result)
     return jsonify([])
