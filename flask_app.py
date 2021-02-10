@@ -93,8 +93,7 @@ def get_photos():
 def logout():
     if is_user_authorized():
         session.pop('session_id')
-    response = redirect(app_properties.HOME_PAGE_URL, code=302)
-    return response
+    return jsonify()
 
 
 def is_user_authorized():
