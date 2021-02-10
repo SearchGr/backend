@@ -37,12 +37,12 @@ def get_detections(url):
 def get_classifications(url):
     image = prepare_image(url, classification_transforms)
     result = classifier(image)
-    percentages = functional.softmax(result, dim=1)[0].detach().numpy()
+    percentages = functional.softmax(result, dim=1)[0].detach().cpu().numpy()
     return numpy.where(percentages > app_properties.CLASSIFICATION_THRESHOLD)[0].tolist()
 
 
 def prepare_image(url, transformations):
     response = requests.get(url)
     image_bytes = io.BytesIO(response.content)
-    image = transformations(Image.open(image_bytes))
+    image = transformations(Image.open(image_bytes)).to(device)
     return image.unsqueeze(0)
